@@ -272,6 +272,12 @@
     .sync-status.warn { color: #f59e0b; }
     .sync-gist { font-size: 12px; color: var(--text-sub); margin-top: 8px; word-break: break-all; }
     .sync-gist a { color: var(--primary); text-decoration: none; }
+    #installHelpBody p { font-size: 13px; line-height: 1.7; margin: 0 0 12px 0; }
+    #installHelpBody ol { font-size: 13px; line-height: 1.75; padding-left: 20px; margin: 0 0 12px 0; }
+    #installHelpBody li { margin-bottom: 7px; }
+    #installHelpBody b { color: var(--primary); }
+    #installHelpBody .help-note { font-size: 12px; color: var(--text-sub); line-height: 1.6; }
+    .link-box { font-size: 12px; color: var(--text-sub); background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; word-break: break-all; margin: 2px 0 10px 0; }
 
     /* ===== 手机端增强 ===== */
     @media (max-width: 480px) {
@@ -311,7 +317,7 @@
   <div class="wrap">
     <header>
       <div class="brand">
-        <div class="date-box">T</div>
+        <div class="date-box">M</div>
         <div class="title">
           <h1>Trader M的每日复盘</h1>
           <span id="todayLabel">2026.10.02</span>
@@ -390,7 +396,7 @@
   <div class="modal-overlay" id="syncModal">
     <div class="sync-modal">
       <h3>云端同步（GitHub Gist）</h3>
-      <p class="sync-tip">在 GitHub 生成一个带 <b>gist</b> 权限的 Personal Access Token，粘贴到下方，即可让<b>手机端与网页端共享同一份数据</b>。Token 仅保存在本机浏览器，不会随文件上传到别处。<br><br><b>安装到手机：</b>安卓 / 电脑浏览器点下方「安装到桌面」；iPhone 用 Safari 打开后，点底部「分享」→「添加到主屏幕」。</p>
+      <p class="sync-tip">在 GitHub 生成一个带 <b>gist</b> 权限的 Personal Access Token，粘贴到下方，即可让<b>手机端与网页端共享同一份数据</b>。Token 仅保存在本机浏览器，不会随文件上传到别处。<br><br><b>安装到手机：</b>安卓用 <b>Chrome</b> 打开本页 → 右上角 ⋮ →「安装应用」；iPhone 用 Safari → 底部「分享」→「添加到主屏幕」。<b>小米浏览器不支持一键安装，请改用 Chrome。</b></p>
       <label class="fld">Token（ghp_...）</label>
       <input type="password" id="syncToken" placeholder="粘贴 GitHub Token" autocomplete="off">
       <label class="fld">Gist ID（可留空，首次同步自动创建私有 Gist）</label>
@@ -406,6 +412,19 @@
       </div>
       <div class="sync-status" id="syncStatus"></div>
       <div class="sync-gist" id="syncGistInfo"></div>
+    </div>
+  </div>
+
+  <!-- 安装指引 -->
+  <div class="modal-overlay" id="installHelp">
+    <div class="sync-modal">
+      <h3>安装到手机 / 电脑</h3>
+      <div id="installHelpBody"></div>
+      <div class="link-box" id="linkBox"></div>
+      <div class="sync-actions">
+        <button class="btn btn-primary" id="copyLinkBtn" type="button" onclick="copyPageLink()">复制本页链接</button>
+        <button class="btn-ghost" type="button" onclick="document.getElementById('installHelp').classList.remove('show')">关闭</button>
+      </div>
     </div>
   </div>
 
@@ -928,6 +947,7 @@
     /* ---------- 事件绑定 ---------- */
     document.getElementById('syncClose').onclick=()=>document.getElementById('syncModal').classList.remove('show');
     document.getElementById('syncModal').addEventListener('click',e=>{if(e.target.id==='syncModal')e.currentTarget.classList.remove('show');});
+    document.getElementById('installHelp').addEventListener('click',e=>{if(e.target.id==='installHelp')e.currentTarget.classList.remove('show');});
     document.getElementById('syncEnable').onclick=async()=>{
       const prevToken=sync.token;
       sync.token=document.getElementById('syncToken').value.trim();
@@ -939,24 +959,57 @@
     document.getElementById('syncNow').onclick=()=>syncNow();
     document.getElementById('syncClearToken').onclick=()=>{if(window.confirm('清除本机保存的 Token 并停用同步？')){clearSyncToken();document.getElementById('syncToken').value='';document.getElementById('syncGistId').value='';}};
     document.getElementById('installBtn').onclick=()=>tryInstall();
+
+    function detectEnv(){
+      const ua=navigator.userAgent;
+      const isIOS=/iPhone|iPad|iPod/i.test(ua);
+      const isMIUI=/MiuiBrowser|XiaoMi|MIUI|Redmi|Mi Browser/i.test(ua);
+      const isAndroid=/Android/i.test(ua);
+      const isChrome=/Chrome|Chromium/i.test(ua) && !/Edg/i.test(ua) && !/MiuiBrowser/i.test(ua);
+      const isEdge=/Edg/i.test(ua);
+      return {ua,isIOS,isMIUI,isAndroid,isChrome,isEdge,isDesktop:!isIOS&&!isAndroid};
+    }
     function tryInstall(){
       if(deferredPrompt){
         deferredPrompt.prompt();
         deferredPrompt.userChoice.then(()=>{});
         deferredPrompt=null;
-        document.getElementById('installPillBtn').classList.add('ghost');
+        const p=document.getElementById('installPillBtn'); if(p)p.classList.add('ghost');
         const r=document.getElementById('installRow'); if(r)r.style.display='none';
         return;
       }
-      // 没有原生 prompt（iOS / 已 dismiss / 桌面）：给出对应手动指引
-      const ua=navigator.userAgent;
-      if(/iPhone|iPad|iPod/i.test(ua)){
-        alert('iPhone 安装：\n1. 点底部工具栏的「分享」按钮（方框+向上箭头）\n2. 向上滑找到「添加到主屏幕」\n3. 点「添加」即可在主屏生成 App 图标');
-      }else if(/Android/i.test(ua)){
-        alert('安卓安装：\n方式一：点页面顶部「安装」按钮（若可一键安装会直接弹出）\n方式二：点浏览器右上角 ⋮ 菜单 →「安装应用 / 添加到主屏幕」');
+      openInstallHelp();
+    }
+    function openInstallHelp(){
+      const env=detectEnv();
+      let html='';
+      if(env.isIOS){
+        html='<p>iPhone / iPad 不支持自动安装，请手动操作：</p><ol><li>打开 <b>Safari</b>（不要用微信 / 其他 App 内置浏览器）访问本页</li><li>点底部工具栏的「分享」按钮（方框 + 向上箭头）</li><li>向上滑，点「<b>添加到主屏幕</b>」</li><li>点右上角「添加」，主屏即出现 App 图标</li></ol>';
+      }else if(env.isMIUI){
+        html='<p><b>小米浏览器（MIUI）对 PWA 一键安装支持有限</b>，推荐改用 Chrome 安装：</p><ol><li>点下方「<b>复制本页链接</b>」</li><li>打开手机上的 <b>Chrome</b> 粘贴并打开</li><li>在 Chrome 里点右上角 ⋮ →「<b>安装应用</b>」，或点本页顶部「安装」按钮</li></ol><p class="help-note">仅用小米浏览器：点菜单 ⋮ →「添加到主屏幕」可生成网页书签图标（非完整离线 App）。</p>';
+      }else if(env.isChrome||env.isEdge){
+        html='<p>当前浏览器支持一键安装：</p><ol><li>点本页顶部「<b>安装</b>」按钮，弹出确认即完成</li><li>或点浏览器右上角 ⋮ →「<b>安装应用 / 添加到主屏幕</b>」</li></ol><p class="help-note">若没弹出，可能是之前忽略过，等几天或用浏览器菜单安装。</p>';
+      }else if(env.isAndroid){
+        html='<p>安卓浏览器请：</p><ol><li>点浏览器菜单（⋮ 或 ≡）→「<b>安装应用 / 添加到主屏幕</b>」</li><li>或用 <b>Chrome</b> 打开本页链接后点顶部「安装」按钮</li></ol>';
       }else{
-        alert('电脑安装：\n点浏览器地址栏右侧的「安装 / 加号」图标，或右上角菜单 →「安装 Trader M的每日复盘」');
+        html='<p>电脑端安装：</p><ol><li>点地址栏右侧的「<b>安装 / 加号</b>」图标</li><li>或浏览器菜单 →「<b>安装 Trader M的每日复盘</b>」</li></ol>';
       }
+      document.getElementById('installHelpBody').innerHTML=html;
+      const lb=document.getElementById('linkBox');
+      if(lb)lb.textContent=location.href.split('#')[0];
+      document.getElementById('installHelp').classList.add('show');
+    }
+    function copyPageLink(){
+      const link=location.href.split('#')[0];
+      const done=()=>{const b=document.getElementById('copyLinkBtn');if(b){const o=b.textContent;b.textContent='已复制 ✓';setTimeout(()=>b.textContent=o,1500);}};
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(link).then(done).catch(()=>fallbackCopy(link,done));
+      }else fallbackCopy(link,done);
+    }
+    function fallbackCopy(t,done){
+      const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.top='-9999px';ta.style.opacity='0';
+      document.body.appendChild(ta);ta.select();try{document.execCommand('copy');if(done)done();}catch(e){}
+      document.body.removeChild(ta);
     }
 
     load();
