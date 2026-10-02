@@ -64,6 +64,16 @@
     }
     .sync.warn::before { background: #f59e0b; }
     .sync.err::before { background: #ef4444; }
+    .head-actions { display: flex; align-items: center; gap: 8px; }
+    .install-pill {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600; color: #fff;
+      background: var(--primary); padding: 6px 12px; border-radius: 20px;
+      border: none; cursor: pointer; user-select: none; transition: transform .1s, background .15s;
+      white-space: nowrap;
+    }
+    .install-pill:active { transform: scale(0.95); }
+    .install-pill.ghost { background: var(--bg); color: var(--primary); }
 
     .card {
       background: var(--card);
@@ -307,7 +317,10 @@
           <span id="todayLabel">2026.10.02</span>
         </div>
       </div>
-      <div class="sync" id="syncPill" onclick="openSync()">同步 · 未启用</div>
+      <div class="head-actions">
+        <div class="sync" id="syncPill" onclick="openSync()">同步 · 未启用</div>
+        <button class="install-pill ghost" id="installPillBtn" type="button" onclick="tryInstall()">安装</button>
+      </div>
     </header>
 
     <div class="card">
@@ -388,8 +401,8 @@
         <button class="btn-ghost" id="syncClose">关闭</button>
         <button class="btn-ghost" id="syncClearToken">清除 Token</button>
       </div>
-      <div id="installRow" style="display:none;margin-top:12px;">
-        <button class="btn btn-secondary" id="installBtn" style="width:100%">安装到桌面</button>
+      <div id="installRow" style="margin-top:12px;">
+        <button class="btn btn-secondary" id="installBtn" style="width:100%">安装到桌面 / 查看安装方法</button>
       </div>
       <div class="sync-status" id="syncStatus"></div>
       <div class="sync-gist" id="syncGistInfo"></div>
@@ -899,8 +912,14 @@
     window.addEventListener('beforeinstallprompt', e=>{
       e.preventDefault();
       deferredPrompt=e;
-      const row=document.getElementById('installRow');
-      if(row)row.style.display='block';
+      // 有原生一键安装能力时，按钮高亮提示
+      const p=document.getElementById('installPillBtn');
+      if(p)p.classList.remove('ghost');
+    });
+    window.addEventListener('appinstalled', ()=>{
+      const p=document.getElementById('installPillBtn');
+      if(p){p.textContent='已安装';p.classList.add('ghost');p.disabled=true;}
+      const r=document.getElementById('installRow'); if(r)r.style.display='none';
     });
     if('serviceWorker' in navigator){
       navigator.serviceWorker.register('sw.js').catch(err=>console.log('SW 注册失败',err));
@@ -919,13 +938,26 @@
     };
     document.getElementById('syncNow').onclick=()=>syncNow();
     document.getElementById('syncClearToken').onclick=()=>{if(window.confirm('清除本机保存的 Token 并停用同步？')){clearSyncToken();document.getElementById('syncToken').value='';document.getElementById('syncGistId').value='';}};
-    document.getElementById('installBtn').onclick=async()=>{
-      if(!deferredPrompt)return;
-      deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
-      deferredPrompt=null;
-      document.getElementById('installRow').style.display='none';
-    };
+    document.getElementById('installBtn').onclick=()=>tryInstall();
+    function tryInstall(){
+      if(deferredPrompt){
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(()=>{});
+        deferredPrompt=null;
+        document.getElementById('installPillBtn').classList.add('ghost');
+        const r=document.getElementById('installRow'); if(r)r.style.display='none';
+        return;
+      }
+      // 没有原生 prompt（iOS / 已 dismiss / 桌面）：给出对应手动指引
+      const ua=navigator.userAgent;
+      if(/iPhone|iPad|iPod/i.test(ua)){
+        alert('iPhone 安装：\n1. 点底部工具栏的「分享」按钮（方框+向上箭头）\n2. 向上滑找到「添加到主屏幕」\n3. 点「添加」即可在主屏生成 App 图标');
+      }else if(/Android/i.test(ua)){
+        alert('安卓安装：\n方式一：点页面顶部「安装」按钮（若可一键安装会直接弹出）\n方式二：点浏览器右上角 ⋮ 菜单 →「安装应用 / 添加到主屏幕」');
+      }else{
+        alert('电脑安装：\n点浏览器地址栏右侧的「安装 / 加号」图标，或右上角菜单 →「安装 Trader M的每日复盘」');
+      }
+    }
 
     load();
     renderCalendar();
