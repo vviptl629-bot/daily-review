@@ -7,8 +7,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="每日复盘">
-  <title>Trader Mark的每日复盘</title>
+  <meta name="apple-mobile-web-app-title" content="Trader M">
+  <title>Trader M的每日复盘</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-192.png">
   <style>
@@ -303,7 +303,7 @@
       <div class="brand">
         <div class="date-box">T</div>
         <div class="title">
-          <h1>Trader Mark的每日复盘</h1>
+          <h1>Trader M的每日复盘</h1>
           <span id="todayLabel">2026.10.02</span>
         </div>
       </div>
@@ -784,7 +784,7 @@
       try{
         const body=reviewPayload();
         if(!sync.gistId){
-          const g=await gistReq('POST',null,{description:'Trader Mark的每日复盘 数据同步',public:false,files:{[SYNC_FILE]:{content:body}}});
+          const g=await gistReq('POST',null,{description:'Trader M的每日复盘 数据同步',public:false,files:{[SYNC_FILE]:{content:body}}});
           sync.gistId=g.id; saveSyncCfg();
         }else{
           await gistReq('PATCH',sync.gistId,{files:{[SYNC_FILE]:{content:body}}});
