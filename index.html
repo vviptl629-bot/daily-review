@@ -65,16 +65,6 @@
     .sync.warn::before { background: #f59e0b; }
     .sync.err::before { background: #ef4444; }
     .head-actions { display: flex; align-items: center; gap: 8px; }
-    .install-pill {
-      display: inline-flex; align-items: center; justify-content: center;
-      font-size: 12px; font-weight: 600; color: #fff;
-      background: var(--primary); padding: 6px 12px; border-radius: 20px;
-      border: none; cursor: pointer; user-select: none; transition: transform .1s, background .15s;
-      white-space: nowrap;
-    }
-    .install-pill:active { transform: scale(0.95); }
-    .install-pill.ghost { background: var(--bg); color: var(--primary); }
-
     .card {
       background: var(--card);
       border-radius: var(--radius);
@@ -272,12 +262,6 @@
     .sync-status.warn { color: #f59e0b; }
     .sync-gist { font-size: 12px; color: var(--text-sub); margin-top: 8px; word-break: break-all; }
     .sync-gist a { color: var(--primary); text-decoration: none; }
-    #installHelpBody p { font-size: 13px; line-height: 1.7; margin: 0 0 12px 0; }
-    #installHelpBody ol { font-size: 13px; line-height: 1.75; padding-left: 20px; margin: 0 0 12px 0; }
-    #installHelpBody li { margin-bottom: 7px; }
-    #installHelpBody b { color: var(--primary); }
-    #installHelpBody .help-note { font-size: 12px; color: var(--text-sub); line-height: 1.6; }
-    .link-box { font-size: 12px; color: var(--text-sub); background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; word-break: break-all; margin: 2px 0 10px 0; }
 
     /* ===== 手机端增强 ===== */
     @media (max-width: 480px) {
@@ -325,7 +309,6 @@
       </div>
       <div class="head-actions">
         <div class="sync" id="syncPill" onclick="openSync()">同步 · 未启用</div>
-        <button class="install-pill ghost" id="installPillBtn" type="button" onclick="tryInstall()">安装</button>
       </div>
     </header>
 
@@ -407,24 +390,8 @@
         <button class="btn-ghost" id="syncClose">关闭</button>
         <button class="btn-ghost" id="syncClearToken">清除 Token</button>
       </div>
-      <div id="installRow" style="margin-top:12px;">
-        <button class="btn btn-secondary" id="installBtn" style="width:100%">安装到桌面 / 查看安装方法</button>
-      </div>
       <div class="sync-status" id="syncStatus"></div>
       <div class="sync-gist" id="syncGistInfo"></div>
-    </div>
-  </div>
-
-  <!-- 安装指引 -->
-  <div class="modal-overlay" id="installHelp">
-    <div class="sync-modal">
-      <h3>安装到手机 / 电脑</h3>
-      <div id="installHelpBody"></div>
-      <div class="link-box" id="linkBox"></div>
-      <div class="sync-actions">
-        <button class="btn btn-primary" id="copyLinkBtn" type="button" onclick="copyPageLink()">复制本页链接</button>
-        <button class="btn-ghost" type="button" onclick="document.getElementById('installHelp').classList.remove('show')">关闭</button>
-      </div>
     </div>
   </div>
 
@@ -927,19 +894,7 @@
     }
 
     /* ---------- PWA ---------- */
-    let deferredPrompt=null;
-    window.addEventListener('beforeinstallprompt', e=>{
-      e.preventDefault();
-      deferredPrompt=e;
-      // 有原生一键安装能力时，按钮高亮提示
-      const p=document.getElementById('installPillBtn');
-      if(p)p.classList.remove('ghost');
-    });
-    window.addEventListener('appinstalled', ()=>{
-      const p=document.getElementById('installPillBtn');
-      if(p){p.textContent='已安装';p.classList.add('ghost');p.disabled=true;}
-      const r=document.getElementById('installRow'); if(r)r.style.display='none';
-    });
+    // 不拦截 beforeinstallprompt：交还给浏览器，由浏览器自行弹出原生安装提示
     if('serviceWorker' in navigator){
       navigator.serviceWorker.register('sw.js').catch(err=>console.log('SW 注册失败',err));
     }
@@ -947,7 +902,6 @@
     /* ---------- 事件绑定 ---------- */
     document.getElementById('syncClose').onclick=()=>document.getElementById('syncModal').classList.remove('show');
     document.getElementById('syncModal').addEventListener('click',e=>{if(e.target.id==='syncModal')e.currentTarget.classList.remove('show');});
-    document.getElementById('installHelp').addEventListener('click',e=>{if(e.target.id==='installHelp')e.currentTarget.classList.remove('show');});
     document.getElementById('syncEnable').onclick=async()=>{
       const prevToken=sync.token;
       sync.token=document.getElementById('syncToken').value.trim();
@@ -958,59 +912,7 @@
     };
     document.getElementById('syncNow').onclick=()=>syncNow();
     document.getElementById('syncClearToken').onclick=()=>{if(window.confirm('清除本机保存的 Token 并停用同步？')){clearSyncToken();document.getElementById('syncToken').value='';document.getElementById('syncGistId').value='';}};
-    document.getElementById('installBtn').onclick=()=>tryInstall();
 
-    function detectEnv(){
-      const ua=navigator.userAgent;
-      const isIOS=/iPhone|iPad|iPod/i.test(ua);
-      const isMIUI=/MiuiBrowser|XiaoMi|MIUI|Redmi|Mi Browser/i.test(ua);
-      const isAndroid=/Android/i.test(ua);
-      const isChrome=/Chrome|Chromium/i.test(ua) && !/Edg/i.test(ua) && !/MiuiBrowser/i.test(ua);
-      const isEdge=/Edg/i.test(ua);
-      return {ua,isIOS,isMIUI,isAndroid,isChrome,isEdge,isDesktop:!isIOS&&!isAndroid};
-    }
-    function tryInstall(){
-      if(deferredPrompt){
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then(()=>{});
-        deferredPrompt=null;
-        const p=document.getElementById('installPillBtn'); if(p)p.classList.add('ghost');
-        const r=document.getElementById('installRow'); if(r)r.style.display='none';
-        return;
-      }
-      openInstallHelp();
-    }
-    function openInstallHelp(){
-      const env=detectEnv();
-      let html='';
-      if(env.isIOS){
-        html='<p>iPhone / iPad 不支持自动安装，请手动操作：</p><ol><li>打开 <b>Safari</b>（不要用微信 / 其他 App 内置浏览器）访问本页</li><li>点底部工具栏的「分享」按钮（方框 + 向上箭头）</li><li>向上滑，点「<b>添加到主屏幕</b>」</li><li>点右上角「添加」，主屏即出现 App 图标</li></ol>';
-      }else if(env.isMIUI){
-        html='<p><b>小米浏览器（MIUI）对 PWA 一键安装支持有限</b>，推荐改用 Chrome 安装：</p><ol><li>点下方「<b>复制本页链接</b>」</li><li>打开手机上的 <b>Chrome</b> 粘贴并打开</li><li>在 Chrome 里点右上角 ⋮ →「<b>安装应用</b>」，或点本页顶部「安装」按钮</li></ol><p class="help-note">仅用小米浏览器：点菜单 ⋮ →「添加到主屏幕」可生成网页书签图标（非完整离线 App）。</p>';
-      }else if(env.isChrome||env.isEdge){
-        html='<p>当前浏览器支持一键安装：</p><ol><li>点本页顶部「<b>安装</b>」按钮，弹出确认即完成</li><li>或点浏览器右上角 ⋮ →「<b>安装应用 / 添加到主屏幕</b>」</li></ol><p class="help-note">若没弹出，可能是之前忽略过，等几天或用浏览器菜单安装。</p>';
-      }else if(env.isAndroid){
-        html='<p>安卓浏览器请：</p><ol><li>点浏览器菜单（⋮ 或 ≡）→「<b>安装应用 / 添加到主屏幕</b>」</li><li>或用 <b>Chrome</b> 打开本页链接后点顶部「安装」按钮</li></ol>';
-      }else{
-        html='<p>电脑端安装：</p><ol><li>点地址栏右侧的「<b>安装 / 加号</b>」图标</li><li>或浏览器菜单 →「<b>安装 Trader M的每日复盘</b>」</li></ol>';
-      }
-      document.getElementById('installHelpBody').innerHTML=html;
-      const lb=document.getElementById('linkBox');
-      if(lb)lb.textContent=location.href.split('#')[0];
-      document.getElementById('installHelp').classList.add('show');
-    }
-    function copyPageLink(){
-      const link=location.href.split('#')[0];
-      const done=()=>{const b=document.getElementById('copyLinkBtn');if(b){const o=b.textContent;b.textContent='已复制 ✓';setTimeout(()=>b.textContent=o,1500);}};
-      if(navigator.clipboard&&navigator.clipboard.writeText){
-        navigator.clipboard.writeText(link).then(done).catch(()=>fallbackCopy(link,done));
-      }else fallbackCopy(link,done);
-    }
-    function fallbackCopy(t,done){
-      const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.top='-9999px';ta.style.opacity='0';
-      document.body.appendChild(ta);ta.select();try{document.execCommand('copy');if(done)done();}catch(e){}
-      document.body.removeChild(ta);
-    }
 
     load();
     renderCalendar();
